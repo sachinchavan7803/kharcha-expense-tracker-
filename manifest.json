@@ -1,15 +1,8 @@
 {
   "short_name": "Kharcha",
-  "name": "Kharcha Tracker — Personal Expense Vault",
-  "icons": [
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/272/272525.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ],
+  "name": "Kharcha Tracker — Day-Wise Expense Vault",
   "start_url": "./index.html",
-  "background_color": "#0b1120",
-  "theme_color": "#10b981",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
   "display": "standalone"
 }
