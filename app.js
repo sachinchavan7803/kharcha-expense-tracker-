@@ -1,4 +1,4 @@
-// --- Initial State & Categories ---
+// --- Storage Keys & Initial Setup ---
 const STORAGE_KEY = 'KHARCHA_TRACKER_VAULT_V2';
 const BUDGET_KEY = 'KHARCHA_TRACKER_MONTHLY_BUDGET_V2';
 
@@ -8,30 +8,30 @@ const CATEGORIES = [
   { id: 'commute', label: 'Fuel & Commute', color: '#3b82f6' },
   { id: 'bills', label: 'Bills, Wi-Fi & Recharge', color: '#ec4899' },
   { id: 'rent', label: 'Rent & Maintenance', color: '#8b5cf6' },
-  { id: 'shopping', label: 'Shopping & Electronics', color: '#06b6d4' },
+  { id: 'shopping', label: 'Shopping & Clothes', color: '#06b6d4' },
   { id: 'health', label: 'Pharmacy & Medical', color: '#ef4444' },
   { id: 'entertainment', label: 'OTT, Outings & Movies', color: '#eab308' },
-  { id: 'misc', label: 'Miscellaneous / Cash', color: '#64748b' }
+  { id: 'misc', label: 'Chai, Snacks & Misc', color: '#64748b' }
 ];
 
-const SEED_DATA = [
-  { id: 'txn-1', title: 'Kirana & Blinkit items', amount: 850, category: 'kirana', payment: 'UPI', date: getRecentDateString(0), note: 'Atta, milk, fruits' },
-  { id: 'txn-2', title: 'Swiggy Dinner', amount: 420, category: 'food', payment: 'UPI', date: getRecentDateString(1), note: 'Paneer Biryani' },
-  { id: 'txn-3', title: 'Petrol refuel', amount: 1500, category: 'commute', payment: 'Credit Card', date: getRecentDateString(3), note: 'Full tank bike/car' },
-  { id: 'txn-4', title: 'Electricity Bill', amount: 2100, category: 'bills', payment: 'Net Banking', date: getRecentDateString(6), note: 'Mahavitaran / MSEB' },
-  { id: 'txn-5', title: 'Medical store medicines', amount: 340, category: 'health', payment: 'Cash', date: getRecentDateString(10), note: 'Vitamins and cough drops' }
-];
-
-function getRecentDateString(daysAgo) {
+function getISODate(daysAgo = 0) {
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
   return d.toISOString().split('T')[0];
 }
 
+const SEED_DATA = [
+  { id: 'seed-1', title: 'Kirana Store & Milk', amount: 340, category: 'kirana', payment: 'UPI', date: getISODate(0), note: 'Daily essentials' },
+  { id: 'seed-2', title: 'Chai & Evening Snacks', amount: 90, category: 'misc', payment: 'Cash', date: getISODate(0), note: 'Tea with friends' },
+  { id: 'seed-3', title: 'Swiggy Dinner', amount: 450, category: 'food', payment: 'UPI', date: getISODate(1), note: 'Biryani bowl' },
+  { id: 'seed-4', title: 'Petrol refuel', amount: 1000, category: 'commute', payment: 'UPI', date: getISODate(1), note: 'Full tank' },
+  { id: 'seed-5', title: 'Electricity Bill', amount: 1850, category: 'bills', payment: 'Net Banking', date: getISODate(3), note: 'Home utility' }
+];
+
 let transactions = [];
 let monthlyBudget = 40000;
 let categoryChartInstance = null;
-let trendChartInstance = null;
+let dailyChartInstance = null;
 
 // --- Currency Formatter ---
 const inrFormatter = new Intl.NumberFormat('en-IN', {
@@ -39,12 +39,11 @@ const inrFormatter = new Intl.NumberFormat('en-IN', {
   currency: 'INR',
   maximumFractionDigits: 0
 });
-
 function formatINR(val) {
   return inrFormatter.format(val || 0);
 }
 
-// --- Load and Save Data ---
+// --- Local Storage Management ---
 function loadData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -56,89 +55,88 @@ function loadData() {
       saveData();
     }
   } catch (err) {
-    console.error('Error reading localStorage', err);
     transactions = [...SEED_DATA];
   }
 
   const savedBudget = localStorage.getItem(BUDGET_KEY);
-  if (savedBudget) {
-    monthlyBudget = Number(savedBudget) || 40000;
-  }
+  if (savedBudget) monthlyBudget = Number(savedBudget) || 40000;
 }
 
 function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
   localStorage.setItem(BUDGET_KEY, monthlyBudget.toString());
-  updateVaultStorageKPIs();
 }
 
-// --- Lifecycle Initialization ---
+// --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
   loadData();
   populateDropdowns();
   initCharts();
   bindEvents();
+  
+  // Set default view date to Today
+  document.getElementById('singleDateInput').value = getISODate(0);
+  
   renderApp();
   lucide.createIcons();
 });
 
-// --- Populate Filters & Dropdowns ---
 function populateDropdowns() {
-  const categoryFilter = document.getElementById('categoryFilter');
-  const expenseCategory = document.getElementById('expenseCategory');
+  const catFilter = document.getElementById('categoryFilter');
+  const expenseCat = document.getElementById('expenseCategory');
 
-  categoryFilter.innerHTML = '<option value="ALL">All Categories</option>';
-  expenseCategory.innerHTML = '';
-
-  CATEGORIES.forEach(cat => {
-    categoryFilter.innerHTML += `<option value="${cat.id}">${cat.label}</option>`;
-    expenseCategory.innerHTML += `<option value="${cat.id}">${cat.label}</option>`;
+  catFilter.innerHTML = '<option value="ALL">All Categories</option>';
+  expenseCat.innerHTML = '';
+  CATEGORIES.forEach(c => {
+    catFilter.innerHTML += `<option value="${c.id}">${c.label}</option>`;
+    expenseCat.innerHTML += `<option value="${c.id}">${c.label}</option>`;
   });
 
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const monthSelect = document.getElementById('monthSelect');
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
   monthSelect.innerHTML = monthNames.map((m, idx) => `<option value="${idx}">${m}</option>`).join('');
-
-  const today = new Date();
-  monthSelect.value = today.getMonth();
+  monthSelect.value = new Date().getMonth();
 
   populateYearSelect();
 }
 
 function populateYearSelect() {
   const yearSelect = document.getElementById('yearSelect');
-  const currentYear = new Date().getFullYear();
-  const txYears = transactions.map(t => new Date(t.date).getFullYear()).filter(y => !isNaN(y));
-  txYears.push(currentYear);
-  const distinctYears = [...new Set(txYears)].sort((a, b) => b - a);
-
+  const curYear = new Date().getFullYear();
+  const years = transactions.map(t => new Date(t.date).getFullYear()).filter(y => !isNaN(y));
+  years.push(curYear);
+  const distinctYears = [...new Set(years)].sort((a, b) => b - a);
   yearSelect.innerHTML = distinctYears.map(y => `<option value="${y}">${y}</option>`).join('');
-  yearSelect.value = currentYear;
+  yearSelect.value = curYear;
 }
 
 // --- Main Render Pipeline ---
 function renderApp() {
   const scope = document.getElementById('timeScopeSelect').value;
-  const selectedYear = parseInt(document.getElementById('yearSelect').value, 10);
-  const selectedMonth = parseInt(document.getElementById('monthSelect').value, 10);
+  const singleDate = document.getElementById('singleDateInput').value;
+  const selYear = parseInt(document.getElementById('yearSelect').value, 10);
+  const selMonth = parseInt(document.getElementById('monthSelect').value, 10);
   const search = document.getElementById('searchInput').value.toLowerCase();
   const catFilter = document.getElementById('categoryFilter').value;
   const payFilter = document.getElementById('paymentFilter').value;
 
-  // 1. Time-scoped items for metrics & charts
+  // 1. Time-scoped items
   const timeScopedList = transactions.filter(t => {
-    const d = new Date(t.date);
-    if (isNaN(d.getTime())) return false;
-    if (scope === 'all') return true;
-    if (scope === 'year') return d.getFullYear() === selectedYear;
-    return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
+    if (!t.date) return false;
+    if (scope === 'day') {
+      return t.date === singleDate;
+    } else if (scope === 'month') {
+      const d = new Date(t.date);
+      return d.getFullYear() === selYear && d.getMonth() === selMonth;
+    } else if (scope === 'year') {
+      const d = new Date(t.date);
+      return d.getFullYear() === selYear;
+    }
+    return true; // 'all'
   });
 
-  // 2. Filtered list for the table
-  const tableList = timeScopedList.filter(t => {
+  // 2. Filtered for user search / category
+  const filteredList = timeScopedList.filter(t => {
     const matchCat = catFilter === 'ALL' || t.category === catFilter;
     const matchPay = payFilter === 'ALL' || t.payment === payFilter;
     const matchSearch =
@@ -148,56 +146,76 @@ function renderApp() {
     return matchCat && matchPay && matchSearch;
   });
 
-  // Sort descending by date
-  tableList.sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Always sort descending by date
+  filteredList.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  renderKPIs(timeScopedList, scope);
-  renderCharts(timeScopedList, selectedYear);
-  renderTable(tableList);
-  updateVaultStorageKPIs();
+  renderKPIs(timeScopedList, scope, singleDate);
+  renderCharts(timeScopedList, scope, selYear, selMonth);
+  renderGroupedDayList(filteredList);
   lucide.createIcons();
 }
 
 // --- Render KPI Cards ---
-function renderKPIs(scopedList, scope) {
+function renderKPIs(scopedList, scope, singleDate) {
   const periodTotal = scopedList.reduce((acc, t) => acc + Number(t.amount || 0), 0);
-  const lifetimeTotal = transactions.reduce((acc, t) => acc + Number(t.amount || 0), 0);
+  
+  // Real-time today spend calculation
+  const todayStr = getISODate(0);
+  const todayItems = transactions.filter(t => t.date === todayStr);
+  const todaySpend = todayItems.reduce((acc, t) => acc + Number(t.amount || 0), 0);
+  document.getElementById('todaySpendVal').textContent = formatINR(todaySpend);
+  document.getElementById('todayTxnCount').textContent = `${todayItems.length} items logged today`;
+
+  // Scope card
+  const titleEl = document.getElementById('kpiScopeTitle');
+  if (scope === 'day') {
+    titleEl.textContent = singleDate === todayStr ? "Today's Total Spend" : `Spend on ${formatDisplayDate(singleDate)}`;
+  } else if (scope === 'month') {
+    titleEl.textContent = "Month's Total Spend";
+  } else if (scope === 'year') {
+    titleEl.textContent = "Year's Total Spend";
+  } else {
+    titleEl.textContent = "Lifetime Total Spend";
+  }
 
   document.getElementById('periodSpendVal').textContent = formatINR(periodTotal);
   document.getElementById('periodTxnCount').textContent = `${scopedList.length} transaction(s) recorded`;
-  document.getElementById('lifetimeSpendVal').textContent = formatINR(lifetimeTotal);
 
-  const kpiLabel = document.getElementById('kpiPeriodLabel');
-  if (scope === 'all') kpiLabel.textContent = 'Lifetime Spend';
-  else if (scope === 'year') kpiLabel.textContent = "Year's Total Spend";
-  else kpiLabel.textContent = "Month's Total Spend";
+  // Monthly Budget Status
+  const curMonth = new Date().getMonth();
+  const curYear = new Date().getFullYear();
+  const thisMonthTotal = transactions
+    .filter(t => {
+      const d = new Date(t.date);
+      return d.getFullYear() === curYear && d.getMonth() === curMonth;
+    })
+    .reduce((acc, t) => acc + Number(t.amount || 0), 0);
 
-  // Budget Calculations
-  const spentPct = Math.min(100, Math.round((periodTotal / (monthlyBudget || 1)) * 100));
-  const remaining = Math.max(0, monthlyBudget - periodTotal);
+  const budgetRemaining = Math.max(0, monthlyBudget - thisMonthTotal);
+  const budgetSpentPct = Math.min(100, Math.round((thisMonthTotal / (monthlyBudget || 1)) * 100));
 
-  document.getElementById('budgetRemainingVal').textContent = formatINR(remaining);
-  document.getElementById('budgetSpentPercent').textContent = `${spentPct}% utilized`;
+  document.getElementById('budgetRemainingVal').textContent = formatINR(budgetRemaining);
+  document.getElementById('budgetSpentPercent').textContent = `${budgetSpentPct}% used`;
   document.getElementById('budgetCapText').textContent = `Cap: ${formatINR(monthlyBudget)}`;
 
   const pBar = document.getElementById('budgetProgressBar');
-  pBar.style.width = `${spentPct}%`;
+  pBar.style.width = `${budgetSpentPct}%`;
   pBar.className = `h-full rounded-full transition-all duration-500 ${
-    spentPct >= 100 ? 'bg-rose-500' : spentPct > 80 ? 'bg-amber-500' : 'bg-emerald-500'
+    budgetSpentPct >= 100 ? 'bg-rose-500' : budgetSpentPct > 80 ? 'bg-amber-500' : 'bg-emerald-500'
   }`;
 
-  // Daily Average
+  // Daily Burn Rate
   const activeDays = new Set(scopedList.map(t => t.date)).size || 1;
   const dailyBurn = Math.round(periodTotal / activeDays);
   document.getElementById('dailyAvgVal').textContent = formatINR(dailyBurn);
-  document.getElementById('dailyAvgSubtext').textContent = `Avg over ${activeDays} active day(s)`;
+  document.getElementById('dailyAvgSubtext').textContent = `Avg across ${activeDays} active day(s)`;
 }
 
-// --- Render Table ---
-function renderTable(list) {
-  const tbody = document.getElementById('transactionTableBody');
+// --- Grouped Day-Wise List Rendering ---
+function renderGroupedDayList(list) {
+  const container = document.getElementById('groupedTransactionsContainer');
   const emptyState = document.getElementById('emptyState');
-  tbody.innerHTML = '';
+  container.innerHTML = '';
 
   if (list.length === 0) {
     emptyState.classList.remove('hidden');
@@ -207,45 +225,96 @@ function renderTable(list) {
   }
   emptyState.classList.add('hidden');
 
-  let tableSum = 0;
-  list.forEach(item => {
-    tableSum += Number(item.amount || 0);
-    const cat = CATEGORIES.find(c => c.id === item.category) || { label: item.category, color: '#64748b' };
+  // Group transactions by date
+  const groups = {};
+  let totalSum = 0;
 
-    const tr = document.createElement('tr');
-    tr.className = 'hover:bg-slate-750/50 transition border-b border-slate-700/40 group';
-    tr.innerHTML = `
-      <td class="py-3 px-4 sm:px-6 whitespace-nowrap text-xs text-slate-400 font-mono">${item.date}</td>
-      <td class="py-3 px-4">
-        <div class="font-semibold text-white">${escapeHtml(item.title)}</div>
-        ${item.note ? `<div class="text-[11px] text-slate-400 mt-0.5 truncate max-w-xs">${escapeHtml(item.note)}</div>` : ''}
-      </td>
-      <td class="py-3 px-4 whitespace-nowrap">
-        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium" style="background-color: ${cat.color}22; color: ${cat.color}; border: 1px solid ${cat.color}44;">
-          ${cat.label}
-        </span>
-      </td>
-      <td class="py-3 px-4 whitespace-nowrap text-xs text-slate-300">${escapeHtml(item.payment || 'UPI')}</td>
-      <td class="py-3 px-4 text-right whitespace-nowrap font-bold text-white font-mono">${formatINR(item.amount)}</td>
-      <td class="py-3 px-4 sm:px-6 text-center whitespace-nowrap">
-        <div class="inline-flex items-center space-x-1.5 opacity-85 group-hover:opacity-100">
-          <button onclick="openEditModal('${item.id}')" class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-emerald-400 transition" title="Edit">
-            <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
-          </button>
-          <button onclick="deleteExpense('${item.id}')" class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-rose-400 transition" title="Delete">
-            <i data-lucide="trash" class="w-3.5 h-3.5"></i>
-          </button>
-        </div>
-      </td>
-    `;
-    tbody.appendChild(tr);
+  list.forEach(item => {
+    totalSum += Number(item.amount || 0);
+    if (!groups[item.date]) groups[item.date] = [];
+    groups[item.date].push(item);
   });
 
-  document.getElementById('showingCountText').textContent = `Showing ${list.length} entries`;
-  document.getElementById('tableSumText').textContent = `Total: ${formatINR(tableSum)}`;
+  const sortedDates = Object.keys(groups).sort((a, b) => new Date(b) - new Date(a));
+
+  sortedDates.forEach(dateStr => {
+    const dayItems = groups[dateStr];
+    const dayTotal = dayItems.reduce((acc, t) => acc + Number(t.amount || 0), 0);
+
+    const isToday = dateStr === getISODate(0);
+    const isYesterday = dateStr === getISODate(1);
+    const dayTag = isToday ? '<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 font-bold ml-2">TODAY</span>' :
+                   isYesterday ? '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-700 text-slate-300 font-bold ml-2">YESTERDAY</span>' : '';
+
+    // Day Section
+    const section = document.createElement('div');
+    section.className = 'py-3 px-4 sm:px-6';
+
+    // Day Header with Day's Total
+    section.innerHTML = `
+      <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-700/40">
+        <div class="flex items-center">
+          <i data-lucide="calendar" class="w-4 h-4 text-emerald-400 mr-2"></i>
+          <span class="text-xs sm:text-sm font-bold text-white tracking-wide">${formatDisplayDate(dateStr)}</span>
+          ${dayTag}
+        </div>
+        <div class="text-xs sm:text-sm font-extrabold text-emerald-400 font-mono">
+          Day Total: ${formatINR(dayTotal)}
+        </div>
+      </div>
+      <div class="space-y-2" id="day-items-${dateStr}"></div>
+    `;
+
+    const itemsContainer = section.querySelector(`#day-items-${dateStr}`);
+
+    dayItems.forEach(item => {
+      const cat = CATEGORIES.find(c => c.id === item.category) || { label: item.category, color: '#64748b' };
+      const row = document.createElement('div');
+      row.className = 'flex items-center justify-between p-2.5 rounded-xl bg-slate-900/50 hover:bg-slate-750/70 border border-slate-800/80 transition group';
+      row.innerHTML = `
+        <div class="flex items-center space-x-3">
+          <div class="w-2.5 h-2.5 rounded-full" style="background-color: ${cat.color}"></div>
+          <div>
+            <div class="text-xs sm:text-sm font-semibold text-white group-hover:text-emerald-400 transition">${escapeHtml(item.title)}</div>
+            <div class="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
+              <span>${cat.label}</span>
+              <span>&middot;</span>
+              <span class="text-slate-300">${escapeHtml(item.payment || 'UPI')}</span>
+              ${item.note ? `<span>&middot;</span> <span class="italic text-slate-400">"${escapeHtml(item.note)}"</span>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center space-x-3">
+          <span class="font-mono font-bold text-white text-xs sm:text-sm">${formatINR(item.amount)}</span>
+          <div class="inline-flex items-center space-x-1 opacity-70 group-hover:opacity-100">
+            <button onclick="openEditModal('${item.id}')" class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-emerald-400" title="Edit">
+              <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="deleteExpense('${item.id}')" class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-rose-400" title="Delete">
+              <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      `;
+      itemsContainer.appendChild(row);
+    });
+
+    container.appendChild(section);
+  });
+
+  document.getElementById('showingCountText').textContent = `Showing ${list.length} item(s) across ${sortedDates.length} day(s)`;
+  document.getElementById('tableSumText').textContent = `Total: ${formatINR(totalSum)}`;
 }
 
-// --- Chart.js Setup & Rendering ---
+// --- Date Formatter ---
+function formatDisplayDate(dateStr) {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-');
+  const dateObj = new Date(year, month - 1, day);
+  return dateObj.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// --- Chart Setup & Rendering ---
 function initCharts() {
   const catCtx = document.getElementById('categoryChart').getContext('2d');
   categoryChartInstance = new Chart(catCtx, {
@@ -254,25 +323,17 @@ function initCharts() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      cutout: '70%',
       plugins: {
         legend: { position: 'bottom', labels: { boxWidth: 10, color: '#94a3b8', font: { size: 10 } } }
-      },
-      cutout: '70%'
+      }
     }
   });
 
-  const trendCtx = document.getElementById('annualTrendChart').getContext('2d');
-  trendChartInstance = new Chart(trendCtx, {
+  const dailyCtx = document.getElementById('dailyTrendChart').getContext('2d');
+  dailyChartInstance = new Chart(dailyCtx, {
     type: 'bar',
-    data: {
-      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-      datasets: [{
-        label: 'Spending (₹)',
-        data: new Array(12).fill(0),
-        backgroundColor: '#10b981',
-        borderRadius: 6
-      }]
-    },
+    data: { labels: [], datasets: [{ data: [], backgroundColor: '#10b981', borderRadius: 4 }] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -281,7 +342,7 @@ function initCharts() {
           grid: { color: 'rgba(51, 65, 85, 0.4)' },
           ticks: { color: '#94a3b8', callback: (v) => '₹' + v.toLocaleString('en-IN') }
         },
-        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+        x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } }
       },
       plugins: {
         legend: { display: false },
@@ -293,8 +354,8 @@ function initCharts() {
   });
 }
 
-function renderCharts(scopedList, targetYear) {
-  // 1. Category Breakdown
+function renderCharts(scopedList, scope, targetYear, targetMonth) {
+  // 1. Category Chart
   const catSums = {};
   CATEGORIES.forEach(c => { catSums[c.id] = 0; });
   scopedList.forEach(t => {
@@ -319,7 +380,6 @@ function renderCharts(scopedList, targetYear) {
     categoryChartInstance.data.datasets[0].data = data;
     categoryChartInstance.data.datasets[0].backgroundColor = colors;
 
-    // Highest category calculation
     let maxIdx = 0;
     for (let i = 1; i < data.length; i++) {
       if (data[i] > data[maxIdx]) maxIdx = i;
@@ -328,40 +388,48 @@ function renderCharts(scopedList, targetYear) {
   }
   categoryChartInstance.update();
 
-  // 2. Annual Trend 12 Months
-  document.getElementById('trendYearLabel').textContent = targetYear.toString();
-  const monthSums = new Array(12).fill(0);
+  // 2. Day-by-Day Bar Chart for the active month
+  let focusYear = targetYear;
+  let focusMonth = targetMonth;
+  if (scope === 'day') {
+    const d = new Date(document.getElementById('singleDateInput').value);
+    focusYear = d.getFullYear();
+    focusMonth = d.getMonth();
+  }
+
+  const daysInMonth = new Date(focusYear, focusMonth + 1, 0).getDate();
+  const daySums = new Array(daysInMonth).fill(0);
+  const monthLabels = Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`);
+
   transactions.forEach(t => {
     const d = new Date(t.date);
-    if (d.getFullYear() === targetYear) {
-      monthSums[d.getMonth()] += Number(t.amount || 0);
+    if (d.getFullYear() === focusYear && d.getMonth() === focusMonth) {
+      const dayNum = d.getDate();
+      if (dayNum >= 1 && dayNum <= daysInMonth) {
+        daySums[dayNum - 1] += Number(t.amount || 0);
+      }
     }
   });
 
-  trendChartInstance.data.datasets[0].data = monthSums;
-  trendChartInstance.update();
-
-  // Highest / Lowest Month
-  let maxMonthIdx = 0;
-  let minMonthIdx = -1;
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  document.getElementById('dailyChartMonthLabel').textContent = `${monthNames[focusMonth]} ${focusYear}`;
 
-  for (let i = 0; i < 12; i++) {
-    if (monthSums[i] > monthSums[maxMonthIdx]) maxMonthIdx = i;
-    if (monthSums[i] > 0) {
-      if (minMonthIdx === -1 || monthSums[i] < monthSums[minMonthIdx]) minMonthIdx = i;
-    }
+  dailyChartInstance.data.labels = monthLabels;
+  dailyChartInstance.data.datasets[0].data = daySums;
+  dailyChartInstance.update();
+
+  // Peak Day calculation
+  let peakDay = 0;
+  for (let i = 1; i < daysInMonth; i++) {
+    if (daySums[i] > daySums[peakDay]) peakDay = i;
   }
-
-  document.getElementById('highestMonthText').textContent =
-    monthSums[maxMonthIdx] > 0 ? `${monthNames[maxMonthIdx]} (${formatINR(monthSums[maxMonthIdx])})` : '—';
-  document.getElementById('lowestMonthText').textContent =
-    minMonthIdx !== -1 ? `${monthNames[minMonthIdx]} (${formatINR(monthSums[minMonthIdx])})` : '—';
+  document.getElementById('peakDayText').textContent =
+    daySums[peakDay] > 0 ? `${peakDay + 1} ${monthNames[focusMonth]} (${formatINR(daySums[peakDay])})` : '—';
 }
 
 // --- CRUD Actions ---
 window.deleteExpense = function(id) {
-  if (confirm('Delete this expense entry?')) {
+  if (confirm('Delete this expense?')) {
     transactions = transactions.filter(t => t.id !== id);
     saveData();
     populateYearSelect();
@@ -392,7 +460,11 @@ window.openEditModal = function(id) {
 function openAddModal() {
   document.getElementById('editExpenseId').value = '';
   document.getElementById('expenseForm').reset();
-  document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
+  
+  // Pre-fill modal with the currently viewed day
+  const currentSelectedDate = document.getElementById('singleDateInput').value || getISODate(0);
+  document.getElementById('expenseDate').value = currentSelectedDate;
+
   document.getElementById('modalTitle').innerHTML = `
     <span class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400"><i data-lucide="plus-circle" class="w-4 h-4"></i></span>
     Add New Kharcha
@@ -401,110 +473,25 @@ function openAddModal() {
   lucide.createIcons();
 }
 
-function closeExpenseModal() {
-  document.getElementById('expenseModal').classList.add('hidden');
-}
-
-// --- Backup & Vault Stats ---
-function updateVaultStorageKPIs() {
-  const jsonStr = JSON.stringify(transactions);
-  const bytes = new Blob([jsonStr]).size;
-  const kb = (bytes / 1024).toFixed(1);
-
-  document.getElementById('storageRecordsCount').textContent = transactions.length;
-  document.getElementById('vaultRecordCount').textContent = transactions.length;
-  document.getElementById('vaultBytes').textContent = `${kb} KB`;
-}
-
-function exportJSONBackup() {
-  const payload = {
-    app: 'KharchaTracker',
-    version: 2,
-    exportDate: new Date().toISOString(),
-    monthlyBudget: monthlyBudget,
-    transactions: transactions
-  };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Kharcha_Tracker_Backup_${new Date().toISOString().split('T')[0]}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function exportCSV() {
-  if (transactions.length === 0) {
-    alert('No transactions to export.');
-    return;
-  }
-  const headers = ['ID', 'Date', 'Title', 'Category', 'Payment Mode', 'Amount (INR)', 'Note'];
-  const rows = transactions.map(t => [
-    t.id,
-    t.date,
-    `"${(t.title || '').replace(/"/g, '""')}"`,
-    t.category,
-    t.payment || 'UPI',
-    t.amount,
-    `"${(t.note || '').replace(/"/g, '""')}"`
-  ]);
-
-  const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Kharcha_Report_${new Date().toISOString().split('T')[0]}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function importJSONFile(file) {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const parsed = JSON.parse(e.target.result);
-      let importedTxns = [];
-
-      if (Array.isArray(parsed)) {
-        importedTxns = parsed;
-      } else if (parsed.transactions && Array.isArray(parsed.transactions)) {
-        importedTxns = parsed.transactions;
-        if (parsed.monthlyBudget) monthlyBudget = Number(parsed.monthlyBudget);
-      } else {
-        alert('Invalid JSON file format.');
-        return;
-      }
-
-      if (confirm(`Import ${importedTxns.length} records? This will merge with your existing database.`)) {
-        const idSet = new Set(transactions.map(t => t.id));
-        importedTxns.forEach(item => {
-          if (!item.id || idSet.has(item.id)) {
-            item.id = 'txn-' + Math.random().toString(36).substr(2, 9);
-          }
-          transactions.push(item);
-        });
-
-        saveData();
-        populateYearSelect();
-        renderApp();
-        alert('Backup imported successfully!');
-        document.getElementById('backupModal').classList.add('hidden');
-      }
-    } catch (err) {
-      alert('Error parsing JSON backup file: ' + err.message);
-    }
-  };
-  reader.readAsText(file);
+function shiftSingleDay(direction) {
+  const input = document.getElementById('singleDateInput');
+  const d = new Date(input.value || getISODate(0));
+  d.setDate(d.getDate() + direction);
+  input.value = d.toISOString().split('T')[0];
+  renderApp();
 }
 
 // --- Event Listeners ---
 function bindEvents() {
   document.getElementById('openAddModalBtn').addEventListener('click', openAddModal);
-  document.getElementById('closeExpenseModalBtn').addEventListener('click', closeExpenseModal);
-  document.getElementById('cancelExpenseModalBtn').addEventListener('click', closeExpenseModal);
+  document.getElementById('closeExpenseModalBtn').addEventListener('click', () => {
+    document.getElementById('expenseModal').classList.add('hidden');
+  });
+  document.getElementById('cancelExpenseModalBtn').addEventListener('click', () => {
+    document.getElementById('expenseModal').classList.add('hidden');
+  });
 
-  // Form Submission
+  // Expense Form Submit
   document.getElementById('expenseForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const editId = document.getElementById('editExpenseId').value;
@@ -532,50 +519,50 @@ function bindEvents() {
         date,
         note
       });
+      // Focus single-day view on the added expense's date
+      document.getElementById('singleDateInput').value = date;
     }
 
     saveData();
     populateYearSelect();
-    closeExpenseModal();
+    document.getElementById('expenseModal').classList.add('hidden');
     renderApp();
   });
 
-  // Filter Event Listeners
-  ['timeScopeSelect', 'monthSelect', 'yearSelect', 'categoryFilter', 'paymentFilter'].forEach(id => {
-    document.getElementById(id).addEventListener('change', () => {
-      const scope = document.getElementById('timeScopeSelect').value;
-      const monthYearControls = document.getElementById('monthYearControls');
-      const monthSelect = document.getElementById('monthSelect');
+  // Day Navigation
+  document.getElementById('prevDayBtn').addEventListener('click', () => shiftSingleDay(-1));
+  document.getElementById('nextDayBtn').addEventListener('click', () => shiftSingleDay(1));
+  document.getElementById('singleDateInput').addEventListener('change', renderApp);
 
-      if (scope === 'all') {
-        monthYearControls.classList.add('opacity-40', 'pointer-events-none');
-      } else if (scope === 'year') {
-        monthYearControls.classList.remove('opacity-40', 'pointer-events-none');
-        monthSelect.classList.add('hidden');
-      } else {
-        monthYearControls.classList.remove('opacity-40', 'pointer-events-none');
-        monthSelect.classList.remove('hidden');
-      }
-      renderApp();
-    });
+  document.getElementById('jumpTodayBtn').addEventListener('click', () => {
+    document.getElementById('timeScopeSelect').value = 'day';
+    document.getElementById('singleDateInput').value = getISODate(0);
+    toggleScopeControls('day');
+    renderApp();
+  });
+
+  document.getElementById('jumpYesterdayBtn').addEventListener('click', () => {
+    document.getElementById('timeScopeSelect').value = 'day';
+    document.getElementById('singleDateInput').value = getISODate(1);
+    toggleScopeControls('day');
+    renderApp();
+  });
+
+  // Scope Switcher
+  document.getElementById('timeScopeSelect').addEventListener('change', (e) => {
+    toggleScopeControls(e.target.value);
+    renderApp();
+  });
+
+  ['monthSelect', 'yearSelect', 'categoryFilter', 'paymentFilter'].forEach(id => {
+    document.getElementById(id).addEventListener('change', renderApp);
   });
 
   document.getElementById('searchInput').addEventListener('input', renderApp);
 
-  document.getElementById('jumpToTodayBtn').addEventListener('click', () => {
-    const now = new Date();
-    document.getElementById('timeScopeSelect').value = 'month';
-    document.getElementById('monthSelect').classList.remove('hidden');
-    document.getElementById('monthYearControls').classList.remove('opacity-40', 'pointer-events-none');
-    document.getElementById('monthSelect').value = now.getMonth();
-    document.getElementById('yearSelect').value = now.getFullYear();
-    renderApp();
-  });
-
-  // Set Budget Modal Prompt
+  // Set Budget Prompt
   document.getElementById('setBudgetBtn').addEventListener('click', () => {
-    const current = monthlyBudget;
-    const input = prompt('Enter your monthly budget in ₹:', current);
+    const input = prompt('Enter your monthly budget in ₹:', monthlyBudget);
     if (input !== null) {
       const parsed = parseFloat(input);
       if (!isNaN(parsed) && parsed > 0) {
@@ -586,7 +573,7 @@ function bindEvents() {
     }
   });
 
-  // Backup Modal Controls
+  // Backup Controls
   document.getElementById('backupBtn').addEventListener('click', () => {
     document.getElementById('backupModal').classList.remove('hidden');
     lucide.createIcons();
@@ -594,24 +581,68 @@ function bindEvents() {
   document.getElementById('closeBackupModalBtn').addEventListener('click', () => {
     document.getElementById('backupModal').classList.add('hidden');
   });
-  document.getElementById('downloadBackupBtn').addEventListener('click', exportJSONBackup);
-  document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
+
+  document.getElementById('downloadBackupBtn').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(transactions, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `Kharcha_Backup_${getISODate(0)}.json`;
+    a.click();
+  });
+
+  document.getElementById('exportCsvBtn').addEventListener('click', () => {
+    if (transactions.length === 0) return alert('No data to export');
+    const headers = ['ID', 'Date', 'Title', 'Category', 'Payment Mode', 'Amount', 'Note'];
+    const rows = transactions.map(t => [t.id, t.date, `"${t.title}"`, t.category, t.payment, t.amount, `"${t.note || ''}"`]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `Kharcha_Report_${getISODate(0)}.csv`;
+    a.click();
+  });
 
   document.getElementById('importJsonInput').addEventListener('change', (e) => {
     if (e.target.files && e.target.files[0]) {
-      importJSONFile(e.target.files[0]);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          transactions = Array.isArray(parsed) ? parsed : (parsed.transactions || []);
+          saveData();
+          populateYearSelect();
+          renderApp();
+          alert('Backup restored successfully!');
+          document.getElementById('backupModal').classList.add('hidden');
+        } catch (err) {
+          alert('Invalid JSON file.');
+        }
+      };
+      reader.readAsText(e.target.files[0]);
     }
   });
+}
 
-  document.getElementById('resetAllDataBtn').addEventListener('click', () => {
-    if (confirm('Are you sure you want to permanently clear all expense records? This cannot be undone unless you have a JSON backup.')) {
-      transactions = [];
-      saveData();
-      populateYearSelect();
-      renderApp();
-      document.getElementById('backupModal').classList.add('hidden');
-    }
-  });
+function toggleScopeControls(scope) {
+  const dayBox = document.getElementById('daySelectorContainer');
+  const monthYearBox = document.getElementById('monthYearControls');
+  const monthSelect = document.getElementById('monthSelect');
+
+  if (scope === 'day') {
+    dayBox.classList.remove('hidden');
+    monthYearBox.classList.add('hidden');
+  } else if (scope === 'month') {
+    dayBox.classList.add('hidden');
+    monthYearBox.classList.remove('hidden');
+    monthSelect.classList.remove('hidden');
+  } else if (scope === 'year') {
+    dayBox.classList.add('hidden');
+    monthYearBox.classList.remove('hidden');
+    monthSelect.classList.add('hidden');
+  } else {
+    dayBox.classList.add('hidden');
+    monthYearBox.classList.add('hidden');
+  }
 }
 
 function escapeHtml(str) {
