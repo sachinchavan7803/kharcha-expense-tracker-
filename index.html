@@ -3,18 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kharcha Tracker — Day-Wise Expense Vault</title>
+  <title>Kharcha Tracker — Day-Wise INR Expense Vault</title>
   
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#10b981" />
+  <meta name="theme-color" content="#0f172a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-  <!-- Fonts & Icons -->
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
 
   <!-- Tailwind CSS & Chart.js -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -23,9 +22,9 @@
       darkMode: 'class',
       theme: {
         extend: {
-          fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
-          colors: {
-            brand: { 50: '#ecfdf5', 100: '#d1fae5', 500: '#10b981', 600: '#059669', 700: '#047857' }
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
           }
         }
       }
@@ -34,190 +33,175 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col selection:bg-emerald-500 selection:text-white">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
 
-  <!-- Header / Navbar -->
-  <header class="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+  <!-- Toast Notification Bar -->
+  <div id="toast" class="fixed top-5 right-5 z-50 transform translate-y-[-150%] transition-transform duration-300 bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-xl flex items-center space-x-2 text-sm font-semibold pointer-events-none">
+    <span id="toastIcon">✓</span>
+    <span id="toastMsg">Operation successful</span>
+  </div>
+
+  <!-- Navbar -->
+  <header class="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
       <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-          <span class="text-white font-extrabold text-xl">₹</span>
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center font-bold text-xl text-white shadow-lg shadow-emerald-500/20">
+          ₹
         </div>
         <div>
-          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+          <h1 class="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
             Kharcha Tracker
             <span class="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Day Wise</span>
           </h1>
-          <p class="text-xs text-slate-400">Daily & Monthly INR Expense Vault</p>
+          <p class="text-xs text-slate-400">Personal Long-Term Expense Vault</p>
         </div>
       </div>
 
+      <!-- Quick Action Buttons -->
       <div class="flex items-center space-x-2 sm:space-x-3">
-        <button id="backupBtn" title="Vault Backup" class="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-medium transition">
-          <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i>
-          <span class="hidden md:inline">Storage</span>
+        <button id="backupModalBtn" class="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-medium transition">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M4 7c0-2 1-3 3-3h10c2 0 3 1 3 3M4 7h16M9 12h6m-6 4h6"></path></svg>
+          <span class="hidden sm:inline">Backup</span>
         </button>
-        <button id="exportCsvBtn" title="Export CSV" class="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-medium transition">
-          <i data-lucide="file-spreadsheet" class="w-4 h-4 text-teal-400"></i>
-          <span class="hidden md:inline">Export CSV</span>
+        <button id="exportCsvBtn" class="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-medium transition">
+          <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          <span class="hidden sm:inline">CSV</span>
         </button>
-        <button id="openAddModalBtn" class="flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-emerald-600/25 transition">
-          <i data-lucide="plus" class="w-4 h-4"></i>
+        <button id="openAddModalBtn" class="flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-emerald-600/25 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
           <span>+ Add Kharcha</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Main Content -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+  <!-- Main Container -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-    <!-- Timeline & Day Filter Toolbar -->
-    <div class="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 space-y-3">
+    <!-- Day & Timeline Controller Bar -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <!-- View Mode Switcher -->
+        <!-- View Scope Selector -->
         <div class="flex items-center space-x-2">
-          <label class="text-xs font-medium text-slate-400">View Mode:</label>
-          <select id="timeScopeSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:border-emerald-500">
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mode:</label>
+          <select id="timeScopeSelect" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-semibold focus:outline-none focus:border-emerald-500">
             <option value="day" selected>📅 Day-by-Day View</option>
-            <option value="month">🗓️ Month View (with Day Groups)</option>
-            <option value="year">📊 Entire Year</option>
+            <option value="month">🗓️ Month-by-Month View</option>
             <option value="all">♾️ All Lifetime</option>
           </select>
         </div>
 
-        <!-- Single Day Controls (Day View) -->
-        <div id="daySelectorContainer" class="flex items-center space-x-2">
-          <button id="prevDayBtn" class="p-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:bg-slate-700 text-slate-300 transition" title="Previous Day">
-            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        <!-- Single Day Controls (Active in Day Mode) -->
+        <div id="dayControls" class="flex items-center space-x-1.5 sm:space-x-2">
+          <button id="prevDayBtn" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" title="Previous Day">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
           </button>
-          <input type="date" id="singleDateInput" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-semibold focus:outline-none focus:border-emerald-500" />
-          <button id="nextDayBtn" class="p-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:bg-slate-700 text-slate-300 transition" title="Next Day">
-            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+          <input type="date" id="targetDatePicker" class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-semibold focus:outline-none focus:border-emerald-500" />
+          <button id="nextDayBtn" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" title="Next Day">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
           </button>
-          <button id="jumpTodayBtn" class="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 font-medium transition">Today</button>
-          <button id="jumpYesterdayBtn" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-700/60 text-slate-300 hover:bg-slate-700 font-medium transition">Yesterday</button>
+          <button id="jumpTodayBtn" class="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 font-semibold transition">Today</button>
+          <button id="jumpYesterdayBtn" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 font-semibold transition">Yesterday</button>
         </div>
 
-        <!-- Month & Year Controls (Month / Year View) -->
-        <div id="monthYearControls" class="hidden flex items-center space-x-2">
-          <select id="monthSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:border-emerald-500"></select>
-          <select id="yearSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:border-emerald-500"></select>
+        <!-- Month & Year Controls (Active in Month Mode) -->
+        <div id="monthControls" class="hidden flex items-center space-x-2">
+          <select id="monthPicker" class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-semibold focus:outline-none focus:border-emerald-500"></select>
+          <select id="yearPicker" class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-semibold focus:outline-none focus:border-emerald-500"></select>
         </div>
       </div>
     </div>
 
-    <!-- Analytics KPI Cards -->
+    <!-- Quick Metrics Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <!-- Active Period / Day Total -->
-      <div class="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-5">
-        <div class="flex items-center justify-between text-slate-400 mb-2">
-          <span class="text-xs font-semibold uppercase tracking-wider" id="kpiScopeTitle">Today's Spend</span>
-          <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-            <i data-lucide="calendar" class="w-4 h-4"></i>
-          </div>
-        </div>
-        <div class="text-2xl sm:text-3xl font-bold text-white tracking-tight" id="periodSpendVal">₹0</div>
-        <p class="text-[11px] text-slate-400 mt-1" id="periodTxnCount">0 transactions</p>
+      <!-- Active Period Spend -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5">
+        <div class="text-xs font-semibold uppercase tracking-wider text-slate-400" id="kpiHeading">Selected Spend</div>
+        <div class="text-2xl sm:text-3xl font-bold font-mono text-emerald-400 mt-2" id="kpiSelectedTotal">₹0</div>
+        <p class="text-[11px] text-slate-500 mt-1" id="kpiSelectedCount">0 transactions recorded</p>
       </div>
 
       <!-- Today's Live Spend -->
-      <div class="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-5">
-        <div class="flex items-center justify-between text-slate-400 mb-2">
-          <span class="text-xs font-semibold uppercase tracking-wider">Today's Total Spend</span>
-          <div class="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 flex items-center justify-center">
-            <i data-lucide="clock" class="w-4 h-4"></i>
-          </div>
-        </div>
-        <div class="text-2xl sm:text-3xl font-bold text-teal-300 tracking-tight" id="todaySpendVal">₹0</div>
-        <p class="text-[11px] text-slate-400 mt-1" id="todayTxnCount">0 items logged today</p>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5">
+        <div class="text-xs font-semibold uppercase tracking-wider text-slate-400">Today's Total Spend</div>
+        <div class="text-2xl sm:text-3xl font-bold font-mono text-teal-300 mt-2" id="kpiTodayTotal">₹0</div>
+        <p class="text-[11px] text-slate-500 mt-1" id="kpiTodayCount">0 items logged today</p>
       </div>
 
-      <!-- Monthly Budget -->
-      <div class="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-5">
-        <div class="flex items-center justify-between text-slate-400 mb-2">
-          <span class="text-xs font-semibold uppercase tracking-wider">Monthly Budget</span>
-          <button id="setBudgetBtn" class="text-xs text-emerald-400 hover:text-emerald-300 font-medium underline">Set Limit</button>
+      <!-- Monthly Budget Tracker -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5">
+        <div class="flex items-center justify-between text-slate-400">
+          <span class="text-xs font-semibold uppercase tracking-wider">Month's Budget</span>
+          <button id="setBudgetBtn" class="text-xs text-emerald-400 hover:text-emerald-300 underline font-medium">Edit</button>
         </div>
-        <div class="text-2xl sm:text-3xl font-bold text-white tracking-tight" id="budgetRemainingVal">₹0</div>
-        <div class="w-full bg-slate-700 h-2 rounded-full mt-3 overflow-hidden">
-          <div id="budgetProgressBar" class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+        <div class="text-2xl sm:text-3xl font-bold font-mono text-white mt-2" id="kpiBudgetLeft">₹0</div>
+        <div class="w-full bg-slate-800 h-2 rounded-full mt-2.5 overflow-hidden">
+          <div id="budgetBar" class="h-full bg-emerald-500 rounded-full transition-all duration-300" style="width: 0%"></div>
         </div>
-        <p class="text-[11px] text-slate-400 mt-1.5 flex justify-between">
-          <span id="budgetSpentPercent">0% used</span>
+        <p class="text-[11px] text-slate-500 mt-1.5 flex justify-between">
+          <span id="budgetPctText">0% used</span>
           <span id="budgetCapText">Cap: ₹40,000</span>
         </p>
       </div>
 
       <!-- Daily Average -->
-      <div class="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-5">
-        <div class="flex items-center justify-between text-slate-400 mb-2">
-          <span class="text-xs font-semibold uppercase tracking-wider">Daily Burn Rate</span>
-          <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
-            <i data-lucide="activity" class="w-4 h-4"></i>
-          </div>
-        </div>
-        <div class="text-2xl sm:text-3xl font-bold text-white tracking-tight" id="dailyAvgVal">₹0</div>
-        <p class="text-[11px] text-slate-400 mt-1" id="dailyAvgSubtext">Average per active day</p>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5">
+        <div class="text-xs font-semibold uppercase tracking-wider text-slate-400">Daily Burn Rate</div>
+        <div class="text-2xl sm:text-3xl font-bold font-mono text-amber-400 mt-2" id="kpiDailyAvg">₹0</div>
+        <p class="text-[11px] text-slate-500 mt-1" id="kpiDailyAvgSub">Average per active day</p>
       </div>
     </div>
 
-    <!-- Charts -->
+    <!-- Charts Row -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Category Doughnut -->
-      <div class="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-5 flex flex-col justify-between">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
         <div>
-          <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-4">
-            <i data-lucide="pie-chart" class="w-4 h-4 text-emerald-400"></i>
-            Category Breakdown
+          <h3 class="text-sm font-bold text-white mb-3 flex items-center justify-between">
+            <span>Category Breakdown</span>
+            <span class="text-xs font-normal text-slate-400" id="catChartSubtitle">Active Selection</span>
           </h3>
-          <div class="relative h-60 w-full flex items-center justify-center">
-            <canvas id="categoryChart"></canvas>
-            <div id="noDataCategory" class="hidden absolute text-xs text-slate-400 text-center">
-              No transactions found<br/>for this selection.
-            </div>
+          <div class="relative h-56 w-full flex items-center justify-center">
+            <canvas id="categoryCanvas"></canvas>
+            <div id="noCatData" class="hidden absolute text-xs text-slate-500 text-center">No data for this date</div>
           </div>
         </div>
-        <div class="mt-4 pt-3 border-t border-slate-700/60 text-xs text-slate-300 flex justify-between">
+        <div class="mt-4 pt-3 border-t border-slate-800 text-xs text-slate-400 flex justify-between">
           <span>Top Category:</span>
-          <span class="font-semibold text-emerald-400" id="topCategoryName">—</span>
+          <strong class="text-emerald-400" id="topCatText">—</strong>
         </div>
       </div>
 
-      <!-- Day-by-Day Daily Bar Chart (1st to 31st) -->
-      <div class="lg:col-span-2 bg-slate-800/80 border border-slate-700/70 rounded-2xl p-5 flex flex-col justify-between">
+      <!-- Day 1-31 Spend Curve -->
+      <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
         <div>
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
-              <i data-lucide="bar-chart-2" class="w-4 h-4 text-teal-400"></i>
-              Daily Spend Pattern (<span id="dailyChartMonthLabel">This Month</span>)
-            </h3>
-            <span class="text-xs text-slate-400">Day 1 to 31 distribution</span>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-white">Daily Spending Curve</h3>
+            <span class="text-xs text-slate-400" id="dailyChartSubtitle">Month View</span>
           </div>
-          <div class="h-60 w-full">
-            <canvas id="dailyTrendChart"></canvas>
+          <div class="h-56 w-full">
+            <canvas id="dailyCanvas"></canvas>
           </div>
         </div>
-        <div class="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-400">
-          <span>Peak Spending Day: <strong class="text-white" id="peakDayText">—</strong></span>
-          <span class="text-slate-400">Days with highest burn rates</span>
+        <div class="mt-4 pt-3 border-t border-slate-800 text-xs text-slate-400 flex justify-between">
+          <span>Peak Expense Day: <strong class="text-white" id="peakDayLabel">—</strong></span>
+          <span class="text-slate-500">Day 1 to 31 distribution</span>
         </div>
       </div>
     </div>
 
-    <!-- Day-Wise Grouped Transactions Table -->
-    <div class="bg-slate-800/80 border border-slate-700/70 rounded-2xl overflow-hidden">
-      <!-- Search & Filters -->
-      <div class="p-4 border-b border-slate-700/80 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+    <!-- Day-Wise Grouped Transactions -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+      <!-- Table Filters -->
+      <div class="p-4 border-b border-slate-800 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
         <div class="flex-1 relative">
-          <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-          <input type="text" id="searchInput" placeholder="Search by title, category, payment mode, or notes..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition" />
+          <input type="text" id="searchInput" placeholder="Search by title, notes, or payment..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500" />
         </div>
         <div class="flex items-center space-x-2">
-          <select id="categoryFilter" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-emerald-500"></select>
-          <select id="paymentFilter" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-            <option value="ALL">All Payment Modes</option>
-            <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
+          <select id="categoryFilter" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500"></select>
+          <select id="paymentFilter" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500">
+            <option value="ALL">All Modes</option>
+            <option value="UPI">UPI</option>
             <option value="Credit Card">Credit Card</option>
             <option value="Debit Card">Debit Card</option>
             <option value="Cash">Cash</option>
@@ -226,60 +210,61 @@
         </div>
       </div>
 
-      <!-- Container where day-by-day blocks are generated -->
-      <div id="groupedTransactionsContainer" class="divide-y divide-slate-700/60"></div>
+      <!-- Transactions List Container -->
+      <div id="transactionsContainer" class="divide-y divide-slate-800">
+        <!-- Day items injected by JavaScript -->
+      </div>
 
       <!-- Empty State -->
-      <div id="emptyState" class="hidden py-14 px-4 text-center">
-        <div class="w-12 h-12 rounded-2xl bg-slate-700/50 flex items-center justify-center mx-auto mb-3 text-slate-400">
-          <i data-lucide="calendar-x" class="w-6 h-6"></i>
+      <div id="emptyListState" class="hidden py-12 px-4 text-center">
+        <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-2 text-slate-500 font-bold">
+          ₹
         </div>
-        <p class="text-sm font-semibold text-slate-300">No expenses recorded for this day / selection</p>
-        <p class="text-xs text-slate-500 mt-1">Click "+ Add Kharcha" to log an expense for this date.</p>
+        <p class="text-sm font-semibold text-slate-300">No expenses found for this date</p>
+        <p class="text-xs text-slate-500 mt-1">Click "+ Add Kharcha" to log an expense.</p>
       </div>
 
-      <div class="p-4 bg-slate-900/40 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-400">
-        <span id="showingCountText">Showing 0 entries</span>
-        <span id="tableSumText" class="font-bold text-white">Total: ₹0</span>
+      <!-- Footer Stats -->
+      <div class="p-4 bg-slate-950/60 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+        <span id="footerCountText">Showing 0 entries</span>
+        <span id="footerSumText" class="font-bold font-mono text-white">Total: ₹0</span>
       </div>
     </div>
+
   </main>
 
-  <!-- Add / Edit Modal -->
-  <div id="expenseModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl relative">
-      <button id="closeExpenseModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg">
-        <i data-lucide="x" class="w-5 h-5"></i>
+  <!-- Modal: Add / Edit Expense -->
+  <div id="expenseModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl relative">
+      <button id="closeModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg">
+        ✕
       </button>
-      <h2 id="modalTitle" class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-        <span class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400"><i data-lucide="plus-circle" class="w-4 h-4"></i></span>
-        Add New Kharcha
-      </h2>
+      <h2 id="modalHeading" class="text-base sm:text-lg font-bold text-white mb-4">Add New Kharcha</h2>
 
-      <form id="expenseForm" class="space-y-4">
-        <input type="hidden" id="editExpenseId" value="" />
+      <form id="kharchaForm" class="space-y-3.5 text-xs sm:text-sm">
+        <input type="hidden" id="formExpenseId" value="" />
 
         <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Amount (₹) *</label>
+          <label class="block text-slate-300 font-semibold mb-1">Amount (₹) *</label>
           <div class="relative">
             <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-            <input type="number" step="0.01" min="0.5" id="expenseAmount" required placeholder="0.00" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-4 py-2 text-sm text-white font-bold focus:outline-none focus:border-emerald-500" />
+            <input type="number" id="formAmount" step="any" required placeholder="0" class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-8 pr-4 py-2 text-white font-mono font-bold focus:outline-none focus:border-emerald-500" />
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Expense Title *</label>
-          <input type="text" id="expenseTitle" required placeholder="e.g., Chai & Samosa, Blinkit, Swiggy, Petrol" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500" />
+          <label class="block text-slate-300 font-semibold mb-1">Expense Title *</label>
+          <input type="text" id="formTitle" required placeholder="e.g., Blinkit, Swiggy, Chai, Petrol" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-emerald-500" />
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="grid grid-cols-2 gap-2.5">
           <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Category *</label>
-            <select id="expenseCategory" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"></select>
+            <label class="block text-slate-300 font-semibold mb-1">Category *</label>
+            <select id="formCategory" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500"></select>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Payment Mode *</label>
-            <select id="expensePayment" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+            <label class="block text-slate-300 font-semibold mb-1">Payment Mode *</label>
+            <select id="formPayment" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
               <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
               <option value="Credit Card">Credit Card</option>
               <option value="Debit Card">Debit Card</option>
@@ -290,48 +275,48 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Expense Date *</label>
-          <input type="date" id="expenseDate" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500" />
+          <label class="block text-slate-300 font-semibold mb-1">Date *</label>
+          <input type="date" id="formDate" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-emerald-500" />
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Notes / Description (Optional)</label>
-          <input type="text" id="expenseNote" placeholder="e.g., Evening snack with friends" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500" />
+          <label class="block text-slate-300 font-semibold mb-1">Notes (Optional)</label>
+          <input type="text" id="formNote" placeholder="e.g., Chai with office team, split by 2" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-emerald-500" />
         </div>
 
         <div class="pt-2 flex justify-end space-x-2">
-          <button type="button" id="cancelExpenseModalBtn" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-700 transition">Cancel</button>
-          <button type="submit" class="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/25 transition">Save Kharcha</button>
+          <button type="button" id="cancelModalBtn" class="px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-800 font-semibold transition">Cancel</button>
+          <button type="submit" id="submitFormBtn" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition shadow-lg shadow-emerald-600/25">Save Kharcha</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Storage Backup Modal -->
-  <div id="backupModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-5 relative text-xs">
-      <button id="closeBackupModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg">
-        <i data-lucide="x" class="w-5 h-5"></i>
-      </button>
-      <h2 class="text-base font-bold text-white mb-2 flex items-center gap-2">
-        <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i>
-        Vault & Data Backup
-      </h2>
-      <p class="text-slate-400 mb-4">Export full backups to ensure you never lose your records.</p>
-      <div class="space-y-2.5">
-        <button id="downloadBackupBtn" class="w-full py-2.5 px-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-medium flex items-center justify-center gap-2 transition">
-          <i data-lucide="download" class="w-4 h-4 text-emerald-400"></i>
+  <!-- Modal: Storage Backup & Restore -->
+  <div id="backupModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl relative">
+      <button id="closeBackupModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg">✕</button>
+      <h2 class="text-base font-bold text-white mb-2">Vault & Storage Backup</h2>
+      <p class="text-xs text-slate-400 mb-4">Export full backups to your computer to prevent data loss if browser cache is cleared.</p>
+
+      <div class="space-y-2.5 text-xs">
+        <button id="downloadBackupBtn" class="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 text-white font-semibold flex items-center justify-center gap-2 border border-slate-700 transition">
           Download JSON Database
         </button>
-        <label class="w-full py-2.5 px-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-medium flex items-center justify-center gap-2 transition cursor-pointer">
-          <i data-lucide="upload" class="w-4 h-4 text-teal-400"></i>
+
+        <label class="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 text-white font-semibold flex items-center justify-center gap-2 border border-slate-700 transition cursor-pointer">
           <span>Restore Backup (.json)</span>
-          <input type="file" id="importJsonInput" accept=".json" class="hidden" />
+          <input type="file" id="importFileInput" accept=".json" class="hidden" />
         </label>
+
+        <button id="clearAllDataBtn" class="w-full py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-semibold border border-rose-500/20 transition mt-3">
+          Wipe Vault Data
+        </button>
       </div>
     </div>
   </div>
 
+  <!-- JavaScript -->
   <script src="app.js"></script>
 </body>
 </html>
